@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: opslens-db
+    environment:
+      POSTGRES_USER: opslens
+      POSTGRES_PASSWORD: opslens
+      POSTGRES_DB: opslens
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,0 +1,43 @@
+# Hard alert thresholds
+
+
+CPU_THRESHOLD = 80
+MEMORY_THRESHOLD = 90
+
+"""
+Simple anomaly detection for OpsLens.
+
+Strategy:
+- compute average of recent values
+- flag large deviations
+"""
+
+from sqlalchemy.orm import Session
+from app.models.metric import Metric
+from sqlalchemy import select, func
+
+
+def detect_spike(db: Session, metric_name: str, value: float) -> bool:
+    """
+    Detect if a metric value is unusually high.
+
+    Rule:
+    spike if value > 2x recent average
+    """
+
+    # ✅ Step 1: get last 20 values for this metric
+    subquery = (
+        db.query(Metric.value)
+        .filter(Metric.name == metric_name)
+        .order_by(Metric.created_at.desc())
+        .limit(20)
+        .subquery()
+    )
+
+    #✅ Step 2: average those values
+    avg = db.query(func.avg(subquery.c.value)).scalar()
+
+    if avg is None:
+        return False
+
+    return value > (2 * avg)
