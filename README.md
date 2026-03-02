@@ -18,7 +18,7 @@ It continuously collects machine telemetry (CPU, memory), stores time-series dat
 
 ---
 
-## 🏗️ Architectur
+## 🏗️ Architecture
 psutil → FastAPI collector → PostgreSQL → Analytics engine → React dashd
 
 **Backend**
@@ -108,7 +108,7 @@ GET /metrics/alerts — anomaly detection results
 
  Kubernetes metrics support
 
-🧑‍💻 Author
+Author:
 
 Alexander Delaney
 
