@@ -1,0 +1,10 @@
+fastapi==0.111.0
+uvicorn==0.29.0
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.10 # For PostgreSQL support. Fine for dev, swap for psycopg2 in production.
+python-dotenv==1.0.1
+psutil==5.9.8
+apscheduler==3.10.4
+passlib[bcrypt]==1.7.4 # the [bycript} extra is required, otherwise your security.py will crash at import
+python-jose[cryptography]==3.3.0  #Same deal the [cryptography] extra is needed for JWT signing to work
+pydantic==2.9.0

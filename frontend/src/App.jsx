@@ -15,61 +15,38 @@ function App() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // -------------------------
-  // Fetch metrics
-  // -------------------------
-  const fetchMetrics = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("http://127.0.0.1:8000/metrics");
-      const data = await res.json();
-      setMetrics(data);
-    } catch (err) {
-      console.error("Metrics fetch failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // -------------------------
-  // Fetch alerts
-  // -------------------------
-  const fetchAlerts = async () => {
-    try {
-      const res = await fetch("http://127.0.0.1:8000/metrics/alerts");
-      const data = await res.json();
-      setAlerts(data.alerts || []);
-    } catch (err) {
-      console.error("Alerts fetch failed:", err);
-    }
-  };
-
-  // -------------------------
-  // Auto refresh
-  // -------------------------
   useEffect(() => {
-    fetchMetrics();
-    fetchAlerts();
+    const ws = new WebSocket("ws://127.0.0.1:8000/metrics/ws");
 
-    const interval = setInterval(() => {
-      fetchMetrics();
-      fetchAlerts();
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setMetrics(data);
+      setLoading(false);
+    };
+
+    ws.onerror = () => console.error("WebSocket error");
+
+    const alertInterval = setInterval(() => {
+      fetch("http://127.0.0.1:8000/metrics/alerts")
+        .then(res => res.json())
+        .then(data => setAlerts(data.alerts || []))
+        .catch(err => console.error("Alerts fetch failed:", err));
     }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      ws.close();
+      clearInterval(alertInterval);
+    };
   }, []);
 
-  // -------------------------
-  // Prepare chart data
-  // -------------------------
-  const chartData = metrics
-    .slice(0, 30)
-    .reverse()
-    .map((m) => ({
-      time: new Date(m.created_at).toLocaleTimeString(),
-      cpu: m.name === "cpu_usage" ? m.value : null,
-      memory: m.name === "memory_usage" ? m.value : null,
-    }));
+  const merged = {};
+  metrics.slice(0, 60).forEach((m) => {
+    const time = new Date(m.created_at).toLocaleTimeString();
+    if (!merged[time]) merged[time] = { time };
+    if (m.name === "cpu_usage") merged[time].cpu = m.value;
+    if (m.name === "memory_usage") merged[time].memory = m.value;
+  });
+  const chartData = Object.values(merged).slice(-30).reverse();
 
   return (
     <div
@@ -87,14 +64,10 @@ function App() {
         ● System monitoring active
       </p>
 
-      {/* ✅ Loading indicator */}
       {loading && (
         <p style={{ color: "#94a3b8" }}>Updating metrics…</p>
       )}
 
-      {/* ============================= */}
-      {/* 📊 System Metrics Chart */}
-      {/* ============================= */}
       <h2>System Metrics (Live)</h2>
 
       <ResponsiveContainer width="100%" height={300}>
@@ -104,25 +77,11 @@ function App() {
           <YAxis />
           <Tooltip />
           <Legend />
-
-          <Line
-            type="monotone"
-            dataKey="cpu"
-            stroke="#ff7300"
-            connectNulls
-          />
-          <Line
-            type="monotone"
-            dataKey="memory"
-            stroke="#387908"
-            connectNulls
-          />
+          <Line type="monotone" dataKey="cpu" stroke="#ff7300" connectNulls />
+          <Line type="monotone" dataKey="memory" stroke="#387908" connectNulls />
         </LineChart>
       </ResponsiveContainer>
 
-      {/* ============================= */}
-      {/* 🚨 Alerts */}
-      {/* ============================= */}
       <h2 style={{ marginTop: "2rem" }}>Alerts</h2>
 
       {alerts.length === 0 ? (
@@ -133,10 +92,7 @@ function App() {
             <li
               key={i}
               style={{
-                color:
-                  a.severity === "critical"
-                    ? "#ef4444"
-                    : "#f59e0b",
+                color: a.severity === "critical" ? "#ef4444" : "#f59e0b",
                 marginBottom: "0.25rem",
               }}
             >
